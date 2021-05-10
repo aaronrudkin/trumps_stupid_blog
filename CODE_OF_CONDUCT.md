@@ -1,0 +1,5 @@
+# User Covenant Code of Conduct
+
+## The Universal Declaration of Human Rights, Article 1
+
+All human beings are born free and equal in dignity and rights. They are endowed with reason and conscience and should act towards one another in a spirit of brotherhood.
