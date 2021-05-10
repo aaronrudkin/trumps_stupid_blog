@@ -46,12 +46,17 @@ while(!done) {
       # URL so we can just grab this
       has_video = one_post %>% html_attr("data-video-url")
       
+      # Images are not so bad
+      has_image = one_post %>% html_nodes("img") %>% html_attr("src")
+      if(!length(has_image)) has_image = NA_character_
+      
       tibble(
         post_id = post_id,
         link = link,
         text = text,
         date = date,
-        has_video = has_video
+        has_video = has_video,
+        has_image = has_image
       )
     })
   
@@ -77,21 +82,37 @@ while(!done) {
 all_posts = bind_rows(posts) %>%
   mutate(date = parse_date_time(date, "I:Mp m d, y"))
 
-# Download the videos using curl
+download_binary_data = function(urls, folder_prefix) {
+  urls %>%
+    unique() %>%
+    setdiff(NA_character_) %>%
+    walk(function(download_url) {
+      dest_file = download_url %>%
+        str_match("(.*)/([^/]*)$") %>%
+        .[, 3]
+      
+      if(file.exists(glue("{folder_prefix}/{dest_file}"))) {
+        return(NULL)
+      }
+
+      print(glue("Downloading {download_url}"))
+      
+      # This unfortunately prints an output rather than being silent,
+      # TODO: use a sink to redirect the output
+      sink(tempfile())
+      curl_download(download_url, glue("{folder_prefix}/{dest_file}"))
+      sink()
+    })
+}
+
+# Download the images and videos using curl
 all_posts %>%
   pull(has_video) %>%
-  unique() %>%
-  setdiff(NA_character_) %>%
-  map(function(download_url) {
-    dest_file = download_url %>%
-      str_match("(.*)/([^/]*)$") %>%
-      .[, 3]
-    print(glue("Downloading {download_url}"))
-    
-    # This unfortunately prints an output rather than being silent,
-    # TODO: use a sink to redirect the output
-    curl_download(download_url, glue("video/{dest_file}"))
-  })
+  download_binary_data(folder_prefix = "video")
+
+all_posts %>%
+  pull(has_image) %>%
+  download_binary_data(folder_prefix = "image")
 
 # Write post output
 write_csv(all_posts, "posts.csv")
